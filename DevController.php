@@ -105,6 +105,72 @@ class CFOrdersController extends Controller
         //
     }
 
+    public function postCategories()
+    {
+        echo '<pre>';
+        $websites = Website::All();
+        foreach ($websites as $website)
+        {
+            if($website->status == 'enabled'){
+            $categoryData = Category::All();
+            //$categoryName .= $categoryData['category_name'];
+            foreach($categoryData as $categoryNames)
+            {
+                $string = str_replace("&","",strtolower($categoryNames->category_name));
+                $newstring = preg_replace('/\s+/', '-', $string);
+                echo '<br>';
+                $url = $website->website.'/wp-json/wp/v2/categories';
+                $data = array(
+                         "name" => $categoryNames->category_name,
+                         "slug" => $newstring
+                         );
+                         $response = Http::withBasicAuth($website->username, $website->password)->post($url, $data);
+                         print_r($response->object());
+            }
+            }
+        }
+        echo '</pre>';
+    }
+ 
+    public function saveMedia($mediaURL,$websiteLink,$username,$password,$imageName)
+    {
+                     $file_headers = get_headers($mediaURL, true);
+                     if(strpos($file_headers[0], '404') == false){
+                         $imgfile = file_get_contents( $mediaURL );
+                     }
+                     
+                     $url = $websiteLink.'/wp-json/wp/v2/media/';
+                     $headers =array(
+                         'content-disposition: attachment; filename='.$imageName,
+                         "content-type: image/jpg",
+                         "cache-control: no-cache",
+                         'Authorization: Basic '.base64_encode( $username . ':' . $password )
+                       );
+                       
+                     $ch = curl_init($url);
+                     curl_setopt($ch, CURLOPT_POSTFIELDS, $imgfile);
+                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+                     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                     
+                     $resultimgID = json_decode(curl_exec($ch));
+                     
+                     curl_close($ch);
+                     //Log::channel('multisiteposterlogs')->info($resultimgID);
+                     if(isset($resultimgID->code))
+                     {
+                         return false;
+                     }
+                     else if (isset($resultimgID->id))
+                     {
+                         return $resultimgID->id;
+                     }
+                     else
+                     {
+                         return '';
+                     }
+    }
+
     /**
      * Store a newly created resource in storage.
      *
